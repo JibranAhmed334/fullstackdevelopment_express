@@ -25,6 +25,12 @@ const userSchema = mongoose.Schema(
         },
         dob: {
             type: Date, required: true
+        },
+        passwordResetToken: {
+            type: String
+        },
+        passwordResetExpires: {
+            type: Date
         }
 
     },

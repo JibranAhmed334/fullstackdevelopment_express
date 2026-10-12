@@ -1,21 +1,10 @@
-import usermodel from "../models/user.model.mjs"
-
 const roleMiddleware = (...role) => {
-  return async (req, res, next) => {
-    const roleExsits = await usermodel.findOne({ role: req.user.role })
-
-
-    if (!roleExsits) {
-      return res.status(401).json({ message: "Unsufficents role" });
+  return (req, res, next) => {
+    if (!req.user || !role.includes(req.user.role)) {
+      return res.status(403).json({ message: "You do not have permission to perform this action." })
     }
-const user = await usermodel.findById(roleExsits._id)
-
-if (!role.includes(user.role)){
-    return res.status(401).json({message:`connot access with this role`})
-
-}
-next();
-}
+    next()
+  }
 }
 
 export default roleMiddleware

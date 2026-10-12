@@ -1,10 +1,5 @@
 import { createContext, useContext, useState } from 'react'
-import axios from 'axios'
-
-const api = axios.create({
-    baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth`,
-    withCredentials: true,
-})
+import api from '../api'
 
 const AuthContext = createContext(null)
 
@@ -18,20 +13,38 @@ export function AuthContextProvider({ children }) {
     })
 
     async function login(credentials) {
-        const { data } = await api.post('/login', credentials)
-        const authenticatedUser = { name: data.name, email: data.email, token: data.token }
+        const { data } = await api.post('/auth/login', credentials)
+        const authenticatedUser = {
+            name: data.name,
+            email: data.email,
+            token: data.token,
+            role: data.role,
+            address: data.address,
+            workphone_no: data.workphone_no,
+            cellphone_no: data.cellphone_no,
+            dob: data.dob,
+        }
         localStorage.setItem('authUser', JSON.stringify(authenticatedUser))
         setUser(authenticatedUser)
         return data
     }
 
     async function register(details) {
-        const { data } = await api.post('/register', details)
+        const { data } = await api.post('/auth/register', details)
         return data
     }
 
+    async function logout() {
+        try {
+            await api.post('/auth/logout')
+        } finally {
+            localStorage.removeItem('authUser')
+            setUser(null)
+        }
+    }
+
     return (
-        <AuthContext.Provider value={{ user, login, register }}>
+        <AuthContext.Provider value={{ user, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     )

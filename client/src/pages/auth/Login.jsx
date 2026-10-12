@@ -1,59 +1,53 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import AuthFrame from '../../components/AuthFrame'
+import Icon from '../../components/Icon'
 import { useAuth } from '../../context/AuthContext'
 
 function Login() {
-    const { login } = useAuth()
-    const navigate = useNavigate()
-    const location = useLocation()
-    const [error, setError] = useState('')
-    const [loading, setLoading] = useState(false)
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-    async function handleSubmit(event) {
-        event.preventDefault()
-        setError('')
-        setLoading(true)
-
-        try {
-            await login(Object.fromEntries(new FormData(event.currentTarget)))
-            navigate('/', { replace: true })
-        } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Login failed. Please try again.')
-        } finally {
-            setLoading(false)
-        }
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const result = await login(Object.fromEntries(new FormData(event.currentTarget)))
+      navigate(result.role === 'admin' ? '/admin' : '/', { replace: true })
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'We could not sign you in. Please check your details and try again.')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    return (
-        <main className="grid min-h-screen place-items-center bg-[#f4f6f0] px-4 py-10 text-[#20332b]">
-            <form className="w-full max-w-md space-y-5 rounded-2xl border border-[#dfe4dc] bg-white p-7 shadow-sm sm:p-9" onSubmit={handleSubmit}>
-                <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#c85c3b]">Mern Market</p>
-                    <h1 className="mt-2 text-3xl font-bold">Welcome back</h1>
-                    <p className="mt-2 text-sm text-[#718078]">Sign in to continue to your account.</p>
-                </div>
-
-                {location.state?.message && <p className="alert alert-success py-2 text-sm">{location.state.message}</p>}
-                {error && <p className="alert alert-error py-2 text-sm">{error}</p>}
-
-                <label className="form-control w-full gap-1">
-                    <span className="label-text font-medium">Email</span>
-                    <input autoComplete="email" className="input input-bordered w-full" name="email" placeholder="you@example.com" required type="email" />
-                </label>
-                <label className="form-control w-full gap-1">
-                    <span className="label-text font-medium">Password</span>
-                    <input autoComplete="current-password" className="input input-bordered w-full" name="password" placeholder="Your password" required type="password" />
-                </label>
-
-                <button className="btn w-full border-0 bg-[#203b32] text-white hover:bg-[#315649]" disabled={loading} type="submit">
-                    {loading ? 'Signing in...' : 'Sign in'}
-                </button>
-                <p className="text-center text-sm text-[#718078]">
-                    New here? <Link className="font-semibold text-[#c85c3b] hover:underline" to="/register">Create an account</Link>
-                </p>
-            </form>
-        </main>
-    )
+  return (
+    <AuthFrame>
+      <section className="auth-card">
+        <div className="auth-icon"><Icon name="user" size={23} /></div>
+        <span className="eyebrow">WELCOME BACK</span>
+        <h1>Good to see you.</h1>
+        <p className="auth-intro">Sign in to pick up right where you left off.</p>
+        {location.state?.message && <p className="form-success" role="status">{location.state.message}</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <form className="form-stack" onSubmit={handleSubmit}>
+          <label className="field-label">Email address
+            <input autoComplete="email" className="field-input" name="email" placeholder="you@example.com" required type="email" />
+          </label>
+          <label className="field-label">Password
+            <input autoComplete="current-password" className="field-input" name="password" placeholder="Your password" required type="password" />
+          </label>
+          <div className="form-meta"><Link to="/forgot-password">Forgot password?</Link></div>
+          <button className="button button-dark auth-submit" disabled={loading} type="submit">{loading ? 'Signing you in…' : 'Sign in'}<Icon name="arrow" size={17} /></button>
+        </form>
+        <p className="auth-switch">New to Alnoor? <Link to="/register">Create an account</Link></p>
+      </section>
+    </AuthFrame>
+  )
 }
 
 export default Login

@@ -2,6 +2,8 @@ import AsyncHandler from "express-async-handler";
 import Product from "../models/product.model .mjs"
 import upload_on_cloudinary from "../utils/cloudinary.utils.mjs";
 import delete_from_cloudinary from "../utils/cloudinary.delete.utils .mjs"
+import mongoose from "mongoose"
+import Category from "../models/category.model.mjs"
 
 const getAllproducts = AsyncHandler(async (req, res) => {
     const product = await Product.find().populate("category","category_name")
@@ -18,24 +20,42 @@ const createproduct = AsyncHandler(async (req, res) => {
     const { product_name, price, category } = req.body
 
 
-    if (!product_name || !price || !category) {
+    if (!product_name?.trim() || !Number.isFinite(Number(price)) || Number(price) <= 0 || !mongoose.isValidObjectId(category)) {
         return res.status(400).json({
-            massage: "please product provided",
+            massage: "Provide a product name, positive price, and valid category.",
             success: false
         });
     }
 
     if (!req.file){
         return res.status(400).json({
-            masssage:"please provided produict image",
+            massage:"Please select a product image.",
             success: false
         })
     }
 
-    const product_image = await upload_on_cloudinary(req.file.path)
+    const categoryExists = await Category.exists({ _id: category })
+    if (!categoryExists) {
+        return res.status(400).json({ massage: "The selected category does not exist.", success: false })
+    }
 
-console.log("   product image",req.file);
-console.log("   product image",product_image);
+    let product_image
+    try {
+        product_image = await upload_on_cloudinary(req.file.path)
+    } catch (error) {
+        console.error("Product image upload failed:", error.message)
+        return res.status(502).json({
+            massage: "Product image upload failed. Check the server image storage settings and try again.",
+            success: false
+        })
+    }
+
+    if (!product_image?.secure_url || !product_image?.public_id) {
+        return res.status(502).json({
+            massage: "The product image could not be uploaded. Please try again.",
+            success: false
+        })
+    }
     // const productExists = await Product.findOne({ product_name: productName });
     // if (productExists) {
     //     return res.status(409).json({
@@ -80,7 +100,16 @@ const getSingleproduct = AsyncHandler(async (req, res) => {
 const updateproduct = AsyncHandler(async (req, res) => {
     const { id } = req.params;
 
-     const product =await Product.findById(id)
+    if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ massage: "Invalid product id.", success: false })
+    }
+
+    const { product_name, price, category } = req.body
+    if (!product_name?.trim() || !Number.isFinite(Number(price)) || Number(price) <= 0 || !mongoose.isValidObjectId(category)) {
+        return res.status(400).json({ massage: "Provide a product name, positive price, and valid category.", success: false })
+    }
+
+    const product = await Product.findById(id)
     
  if (!product) {
         return res.status(404).json({
@@ -89,7 +118,11 @@ const updateproduct = AsyncHandler(async (req, res) => {
         })
  }
 
-const updatedproduct = await Product.findByIdAndUpdate(id, req.body, { new: true });
+    const updatedproduct = await Product.findByIdAndUpdate(
+        id,
+        { product_name: product_name.trim(), price: Number(price), category },
+        { new: true, runValidators: true }
+    ).populate("category", "category_name")
 
     return res.status(200).json({ 
         massage: "update producte", 
@@ -101,7 +134,11 @@ const updatedproduct = await Product.findByIdAndUpdate(id, req.body, { new: true
 const deleteproduct = AsyncHandler(async (req, res) => {
     const { id } = req.params;
 
- const product =await Product.findById(id)
+    if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ massage: "Invalid product id.", success: false })
+    }
+
+    const product = await Product.findById(id)
     
  if (!product) {
         return res.status(404).json({
@@ -109,10 +146,19 @@ const deleteproduct = AsyncHandler(async (req, res) => {
             success: false
         })
  }
- await delete_from_cloudinary(product.product_image_public_id)
-await Product.findByIdAndDelete(id)
+    await Product.findByIdAndDelete(id)
 
-    return res.status(200).json({ massage: "delete producte", success: true });
+    let warning
+    if (product.product_image_public_id) {
+        try {
+            await delete_from_cloudinary(product.product_image_public_id)
+        } catch (error) {
+            console.error(`Could not remove image for deleted product ${id}:`, error.message)
+            warning = "The product was deleted, but its image could not be removed from storage."
+        }
+    }
+
+    return res.status(200).json({ massage: "delete producte", success: true, warning });
 
 
 });
